@@ -1,0 +1,27 @@
+{
+  "name": "ask-nova-mock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local mock of an on-site AI web assistant (consent gate, RAG-backed chat, source rail, streaming) for the fictional Northline product.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "next": "^15.1.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
