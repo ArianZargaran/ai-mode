@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type Source = { title: string; url: string; score: number };
@@ -10,14 +10,8 @@ type UserMsg = { role: "user"; text: string };
 type Msg = UserMsg | AiMsg;
 type Mode = "collapsed" | "expanded" | "active";
 
-// white sparkle for use on gradient / dark avatars inside the chat panel
-const SPARK = (
-  <svg viewBox="0 0 24 24" fill="none">
-    <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3z" fill="white" />
-  </svg>
-);
-
-// accent (currentColor) sparkle for the ai-mode input bar
+// accent (currentColor) sparkle — used in the ai-mode input bar and as the AI
+// avatar / header mark in the conversation
 const SPARK_ACCENT = (
   <svg viewBox="0 0 24 24" fill="none">
     <path d="M12 3l1.6 5.4L19 10l-5.4 1.6L12 17l-1.6-5.4L5 10l5.4-1.6L12 3z" fill="currentColor" />
@@ -29,6 +23,30 @@ const RETURN_ICON = (
   <svg viewBox="0 0 24 24" fill="none">
     <path d="M9 10L5 14l4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M5 14h9a5 5 0 0 0 5-5V6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+// paragraph icon — marks the fixed "Summarize this page" option
+const PARAGRAPH_ICON = (
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M5 6h14M5 10h14M5 14h9M5 18h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </svg>
+);
+
+const SUMMARIZE_PROMPT = "Summarize this page";
+
+// diagonal two-pointer "expand" icon — shown on the send button when the input
+// is empty but a conversation exists (click re-opens the dialog)
+const EXPAND_ICON = (
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M14 4h6v6M20 4l-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M10 20H4v-6M4 20l7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const UP_ARROW_ICON = (
+  <svg viewBox="0 0 24 24" fill="none">
+    <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -62,8 +80,38 @@ const PROMPTS_BY_ROUTE: Record<string, string[]> = {
 };
 
 // minimal markdown: **bold**, blank-line paragraphs, "- " bullet lists
+// Inline markdown. IMPORTANT: `s` is already HTML-escaped, and this runs on the
+// PARTIAL buffer during streaming — so we only ever emit COMPLETE, atomic <a>
+// tags (a link token must be fully matched, incl. its closing paren, before it
+// becomes markup). Half-typed syntax stays as inert escaped text → the HTML is
+// always well-formed and can't break the DOM. URL charclass forbids
+// spaces/quotes/`)` so an href can't break out, and only http(s)/relative pass.
 function inline(s: string): string {
-  return s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  let out = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+
+  // 1) complete markdown links [copy](url) → pill. Stash so autolink can't
+  //    touch their href.
+  const stash: string[] = [];
+  out = out.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)"']+|\/[^\s)"']+)\)/g,
+    (_m, copy: string, url: string) => {
+      const i =
+        stash.push(
+          `<a class="lnk-pill" href="${url}" target="_blank" rel="noopener noreferrer">${copy}</a>`
+        ) - 1;
+      return `\u0000${i}\u0000`;
+    }
+  );
+
+  // 2) bare URLs → purple underlined link
+  out = out.replace(
+    /(https?:\/\/[^\s<"']+)/g,
+    (url) => `<a class="lnk" href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+  );
+
+  // 3) restore stashed pills
+  out = out.replace(/\u0000(\d+)\u0000/g, (_m, i: string) => stash[Number(i)]);
+  return out;
 }
 function mdToHtml(src: string): string {
   const esc = src.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -86,6 +134,14 @@ function mdToHtml(src: string): string {
 function MessageActions({ msg }: { msg: AiMsg }) {
   const [vote, setVote] = useState<"up" | "down" | null>(null);
   const [copied, setCopied] = useState(false);
+  // once the user dislikes, the sales card stays for good (latched)
+  const [salesShown, setSalesShown] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // when the sales card appears, scroll it into view (centered)
+  useEffect(() => {
+    if (salesShown) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [salesShown]);
 
   const copy = () => {
     const plain = msg.text.replace(/\*\*/g, "").trim();
@@ -102,35 +158,85 @@ function MessageActions({ msg }: { msg: AiMsg }) {
           title="Good response"
           onClick={() => setVote((v) => (v === "up" ? null : "up"))}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M7 11v9H4v-9h3zm3.6 9c-.9 0-1.6-.7-1.6-1.6V11l4-7 1 .4c.4.2.6.6.6 1v3.6H19c1 0 1.8.9 1.6 1.9l-1.2 6c-.2.9-1 1.6-1.9 1.6h-6.9z" fill="currentColor" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z" />
+            <path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
           </svg>
         </button>
         <button
           className={"down" + (vote === "down" ? " active" : "")}
           title="Poor response"
-          onClick={() => setVote((v) => (v === "down" ? null : "down"))}
+          onClick={() => {
+            setVote((v) => (v === "down" ? null : "down"));
+            setSalesShown(true);
+          }}
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <path d="M17 13V4h3v9h-3zm-3.6-9c.9 0 1.6.7 1.6 1.6V13l-4 7-1-.4c-.4-.2-.6-.6-.6-1v-3.6H5c-1 0-1.8-.9-1.6-1.9l1.2-6c.2-.9 1-1.6 1.9-1.6h6.9z" fill="currentColor" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z" />
+            <path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17" />
           </svg>
         </button>
         <button className="copy" title="Copy" onClick={copy}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-            <rect x="9" y="9" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M5 15V6a1 1 0 0 1 1-1h9" stroke="currentColor" strokeWidth="1.6" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
           </svg>
         </button>
         <span className="copied" hidden={!copied}>Copied</span>
       </div>
-      {msg.meta?.fallback && (
-        <div className="fallback-card">
+      {salesShown && (
+        <div className="fallback-card" ref={cardRef}>
           <p className="title">Not quite what you needed?</p>
           <p className="body">Connect with our sales team for a walkthrough tailored to your setup.</p>
           <a href="#">Contact sales &rarr;</a>
         </div>
       )}
     </>
+  );
+}
+
+// per-answer sidebar: quick actions + relevant pages, or a skeleton while the
+// answer is still streaming (before its meta/sources arrive)
+function AnswerRail({ msg }: { msg: AiMsg }) {
+  const meta = msg.meta;
+  const loading = !msg.done && !msg.error;
+  return (
+    <aside className="answer-rail">
+      <div>
+        <h5>Quick actions</h5>
+        <a className="quick-cta" href="#">Get started &rarr;</a>
+      </div>
+      <div>
+        <h5>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+            <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          Relevant pages
+        </h5>
+        {meta && meta.sources.length > 0 ? (
+          <div className="src-list">
+            {meta.sources.map((s, i) => (
+              <a className="src" href="#" key={i}>
+                <div className="t">{s.title}</div>
+                <div className="d">
+                  <span>{s.url}</span>
+                  <span className="score">{s.score.toFixed(2)}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        ) : loading ? (
+          <div className="src-list">
+            {[0, 1, 2].map((k) => (
+              <div className="src skeleton" key={k} aria-hidden="true">
+                <span className="sk-line sk-t" />
+                <span className="sk-line sk-d" />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </aside>
   );
 }
 
@@ -154,6 +260,8 @@ export default function AiModeInput() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [wide, setWide] = useState(false);
+  const [dragY, setDragY] = useState(0); // mobile drawer drag-to-close offset
+  const dragStart = useRef<number | null>(null);
 
   // prompts follow the page the persistent widget is currently on
   const pathname = usePathname();
@@ -189,6 +297,22 @@ export default function AiModeInput() {
     scrollBottom();
   }, [messages, scrollBottom]);
 
+  // lock page scroll while the dialog (consent or chat) is open, compensating
+  // for the removed scrollbar so the page doesn't shift underneath
+  useEffect(() => {
+    if (view === "closed") return;
+    const { body, documentElement: html } = document;
+    const scrollbarW = window.innerWidth - html.clientWidth;
+    const prevOverflow = body.style.overflow;
+    const prevPadding = body.style.paddingRight;
+    body.style.overflow = "hidden";
+    if (scrollbarW > 0) body.style.paddingRight = `${scrollbarW}px`;
+    return () => {
+      body.style.overflow = prevOverflow;
+      body.style.paddingRight = prevPadding;
+    };
+  }, [view]);
+
   // focus the chat composer when the panel opens
   useEffect(() => {
     if (view === "panel") {
@@ -222,6 +346,12 @@ export default function AiModeInput() {
   const closeOverlay = useCallback(() => {
     setView("closed");
     setMode("collapsed");
+  }, []);
+
+  // minimize (dialog "−"): dismiss the overlay but leave the input expanded
+  const minimizeOverlay = useCallback(() => {
+    setView("closed");
+    setMode("expanded");
   }, []);
 
   // collapse the ai-mode input on click-outside (any state) and scroll (expanded only)
@@ -337,12 +467,21 @@ export default function AiModeInput() {
     [messages.length]
   );
 
+  // Leaving the ai-mode input for the dialog: it must never sit in "active"
+  // behind the dialog, and the options panel must drop instantly (not animate)
+  // so closing the dialog can't replay the panel's exit.
+  const dropActive = () => {
+    setPanelIn(false);
+    setPanelMounted(false);
+    setMode("collapsed");
+  };
+
   // Submit a question: route through the consent gate the first time, then chat.
   const submitQuestion = (text: string) => {
     const v = text.trim();
     if (!v) return;
     setAiInput("");
-    setMode("collapsed");
+    dropActive();
     if (consented) {
       setView("panel");
       streamAnswer(v);
@@ -406,12 +545,23 @@ export default function AiModeInput() {
     }
   };
 
-  const lastMeta = [...messages].reverse().find((m): m is AiMsg => m.role === "ai" && !!m.meta?.sources.length)?.meta;
-  const showRail = wide && !!lastMeta;
   const sendDisabled = busy || input.trim().length === 0;
-  const aiSendDisabled = aiInput.trim().length === 0;
+  const aiHasText = aiInput.trim().length > 0;
+  // empty input + existing conversation → the button expands the dialog instead
+  const aiCanExpand = !aiHasText && messages.length > 0;
+  const aiSendDisabled = !aiHasText && !aiCanExpand;
   const empty = messages.length === 0;
   const overlayOpen = view !== "closed";
+
+  // group messages into Q&A turns so each answer's rail aligns with its question
+  const turns: { q: UserMsg; a: AiMsg | null; key: number }[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i];
+    if (m.role === "user") {
+      const next = messages[i + 1];
+      turns.push({ q: m, a: next && next.role === "ai" ? next : null, key: i });
+    }
+  }
 
   return (
     <>
@@ -431,7 +581,14 @@ export default function AiModeInput() {
                   </button>
                 </div>
                 <div className="aimode-prompts">
-                  {prompts.map((q) => (
+                  <button
+                    className="aimode-prompt"
+                    onClick={() => submitQuestion(SUMMARIZE_PROMPT)}
+                  >
+                    {PARAGRAPH_ICON}
+                    {SUMMARIZE_PROMPT}
+                  </button>
+                  {prompts.slice(0, 2).map((q) => (
                     <button key={q} className="aimode-prompt" onClick={() => submitQuestion(q)}>
                       {RETURN_ICON}
                       {q}
@@ -457,16 +614,19 @@ export default function AiModeInput() {
             <button
               className="aimode-send"
               type="button"
-              aria-label="Send"
+              aria-label={aiCanExpand ? "Expand conversation" : "Send"}
               disabled={aiSendDisabled}
               onClick={(e) => {
                 e.stopPropagation();
-                submitQuestion(aiInput);
+                if (aiHasText) {
+                  submitQuestion(aiInput);
+                } else if (messages.length > 0) {
+                  dropActive();
+                  setView("panel");
+                }
               }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {aiCanExpand ? EXPAND_ICON : UP_ARROW_ICON}
             </button>
           </div>
         </div>
@@ -474,143 +634,151 @@ export default function AiModeInput() {
 
       <div className={"scrim" + (overlayOpen ? " show" : "")} onClick={closeOverlay} />
 
-      <div className={"consent" + (view === "consent" ? " show" : "")}>
-        <button className="x" aria-label="Close" onClick={closeOverlay}>
-          &times;
-        </button>
-        <div className="icon">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
-            <path d="M12 2l2.2 6.4L21 10.6l-6.8 2.2L12 19l-2.2-6.2L3 10.6l6.8-2.2L12 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <h2>Before you ask Nova</h2>
-        <p>
-          By clicking &quot;Accept,&quot; you consent to your questions being processed by our AI
-          assistant, as described in the <a href="#">Nova AI documentation</a>. Northline won&apos;t
-          use this conversation to train external models.
-        </p>
-        <div className="consent-actions">
-          <button className="btn" onClick={closeOverlay}>Cancel</button>
-          <button className="btn primary" onClick={accept}>Accept</button>
-        </div>
-        <div className="genai-note">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-            <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
-          Nova is generative AI and can produce inaccurate responses.
-        </div>
-      </div>
-
-      <div className={"panel" + (view === "panel" ? " show" : "")}>
-        <div className="panel-head">
-          <span className="dot">{SPARK}</span>
-          <div className="who">
-            Ask Nova<small>Northline&apos;s AI assistant</small>
-          </div>
-          <div className="sp" />
-          <button className="icon-btn" aria-label="Close" onClick={closeOverlay}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <div
+        className={"consent-wrap" + (overlayOpen ? " show" : "")}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeOverlay();
+        }}
+      >
+        <div
+          className={"consent" + (view === "panel" ? " chat" : "")}
+          style={dragY ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
+          onTouchStart={(e) => {
+            if (wide) return;
+            dragStart.current = e.touches[0].clientY;
+          }}
+          onTouchMove={(e) => {
+            if (wide || dragStart.current == null) return;
+            const dy = e.touches[0].clientY - dragStart.current;
+            // drag only downward, and only when the scroll area is at the top
+            const atTop = !threadRef.current || threadRef.current.scrollTop <= 0;
+            if (dy > 0 && atTop) setDragY(dy);
+          }}
+          onTouchEnd={() => {
+            if (wide) return;
+            if (dragY > 110) closeOverlay();
+            setDragY(0);
+            dragStart.current = null;
+          }}
+        >
+          <button className="consent-min" aria-label="Minimize" onClick={minimizeOverlay}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M6 12h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-        </div>
-        <div className={"panel-body" + (showRail ? "" : " no-rail")}>
-          <div className="thread" ref={threadRef}>
-            {empty && (
-              <div className="empty-state">
-                <div className="dot">{SPARK}</div>
-                <h3>Ask about Northline</h3>
-                <p>Nova retrieves relevant docs and answers with citations, in real time.</p>
-                <div className="chip-row">
-                  {prompts.map((q) => (
-                    <button key={q} className="chip" onClick={() => ask(q)}>
-                      {q}
-                    </button>
-                  ))}
+
+          {view === "consent" ? (
+            <>
+              <div className="consent-body">
+                <h2>Before you ask Nova</h2>
+                <p>
+                  By clicking &quot;Accept,&quot; you consent to your questions being processed by
+                  our AI assistant, as described in the <a href="#">Nova AI documentation</a>.
+                  Northline won&apos;t use this conversation to train external models.
+                </p>
+                <div className="consent-actions">
+                  <button className="btn primary" onClick={accept}>Accept</button>
+                  <button className="cancel" onClick={closeOverlay}>Cancel</button>
                 </div>
               </div>
-            )}
-
-            {messages.map((m, i) =>
-              m.role === "user" ? (
-                <div className="msg user" key={i}>
-                  <div className="avatar">You</div>
-                  <div className="bubble">{m.text}</div>
+              <div className="genai-note">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+                Nova is generative AI and can produce inaccurate responses.
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="panel-head">
+                <span className="dot">{SPARK_ACCENT}</span>
+                <div className="who">
+                  Ask Nova<small>Northline&apos;s AI assistant</small>
                 </div>
-              ) : (
-                <div className="msg ai" key={i}>
-                  <div className="avatar">{SPARK}</div>
-                  <div className="bubble">
-                    <span className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(m.text) }} />
-                    {!m.done && !m.error && <span className="caret" />}
-                    {m.error && <p className="error-text">{m.error}</p>}
-                    {m.done && !m.error && <MessageActions msg={m} />}
+                <div className="sp" />
+              </div>
+              <div className="panel-body" ref={threadRef}>
+                {empty && (
+                  <div className="empty-state">
+                    <div className="dot">{SPARK_ACCENT}</div>
+                    <h3>Ask about Northline</h3>
+                    <p>Nova retrieves relevant docs and answers with citations, in real time.</p>
+                    <div className="chip-row">
+                      {prompts.map((q) => (
+                        <button key={q} className="chip" onClick={() => ask(q)}>
+                          {q}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            )}
-          </div>
+                )}
 
-          {showRail && lastMeta && (
-            <div className="rail">
-              {lastMeta.cta && (
-                <div>
-                  <h5>Quick actions</h5>
-                  <a className="quick-cta" href="#">Get started &rarr;</a>
-                </div>
-              )}
-              <div>
-                <h5>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                  Relevant pages
-                </h5>
-                <div className="src-list">
-                  {lastMeta.sources.map((s, i) => (
-                    <a className="src" href="#" key={i}>
-                      <div className="t">{s.title}</div>
-                      <div className="d">
-                        <span>{s.url}</span>
-                        <span className="score">{s.score.toFixed(2)}</span>
+                {turns.map((t, ti) => (
+                  <Fragment key={t.key}>
+                    {ti > 0 && <div className="convo-sep" />}
+                    <div className="turn">
+                      <div className="turn-main">
+                        <div className="turn-head">
+                          <span className="turn-head-spark">{SPARK_ACCENT}</span>
+                          AI response
+                        </div>
+                        <div className="msg user">
+                          <div className="bubble">{t.q.text}</div>
+                        </div>
+                        {t.a && (
+                          <div className="msg ai">
+                            <div className="bubble">
+                              <span className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(t.a.text) }} />
+                              {!t.a.done && !t.a.error && <span className="caret" />}
+                              {t.a.error && <p className="error-text">{t.a.error}</p>}
+                              {t.a.done && !t.a.error && <MessageActions msg={t.a} />}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </a>
-                  ))}
+                      {wide && t.a && <AnswerRail msg={t.a} />}
+                    </div>
+                  </Fragment>
+                ))}
+              </div>
+              <div className="composer">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    ask(input);
+                  }}
+                >
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    placeholder="Ask Nova a question…"
+                    value={input}
+                    onChange={onComposerChange}
+                    onKeyDown={onComposerKeyDown}
+                  />
+                  <button className="send-btn" type="submit" disabled={sendDisabled} aria-label="Send">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 19V5M6 11l6-6 6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </form>
+                <div className="disclaimer">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                  Nova uses generative AI, which can produce inaccurate responses.
                 </div>
               </div>
-            </div>
+            </>
           )}
         </div>
-        <div className="composer">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              ask(input);
-            }}
-          >
-            <textarea
-              ref={inputRef}
-              rows={1}
-              placeholder="Ask Nova a question…"
-              value={input}
-              onChange={onComposerChange}
-              onKeyDown={onComposerKeyDown}
-            />
-            <button className="send-btn" type="submit" disabled={sendDisabled} aria-label="Send">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M4 12h15M13 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          </form>
-          <div className="disclaimer">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
-              <path d="M12 8v5M12 16h.01" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            Nova uses generative AI, which can produce inaccurate responses.
-          </div>
-        </div>
+        <button className="consent-close" aria-label="Close" onClick={closeOverlay}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
     </>
   );

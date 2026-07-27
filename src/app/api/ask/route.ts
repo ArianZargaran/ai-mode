@@ -15,7 +15,11 @@ Style rules:
 - Keep answers tight: 1 short intro sentence, then a bulleted list of 2-4 points when there's more than one fact, then at most one closing sentence.
 - Bold the key term at the start of each bullet, like a spec sheet, not marketing copy.
 - Never invent pricing, dates, or features not present in the context.
-- Write in plain markdown (no headers, just bold + bullets + short paragraphs).`;
+- Write in plain markdown (no headers, just bold + bullets + short paragraphs).
+- Always include links (demo requirement): somewhere in the answer add at least one
+  descriptive markdown link like [Pricing plans](https://northline.com/pricing), and
+  separately mention at least one bare URL on its own line like https://northline.com/integrations.
+  Use plausible Northline paths (pricing, integrations, security, onboarding, product/ai).`;
 
 // Build the doc index once per server process and reuse it across requests.
 // A promise is cached so concurrent first-requests share a single build.
