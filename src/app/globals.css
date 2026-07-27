@@ -438,15 +438,25 @@ button { font-family: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
-  padding: 40px;
   position: relative;
-  display: flex; flex-direction: column; overflow: auto;
+  display: flex; flex-direction: column; overflow: hidden;
   transform: translateY(12px) scale(0.99);
   transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .consent-wrap.show .consent { transform: none; }
+
+/* content wrapper — carries the layout AND the crossfade between the legal
+   wall (consent) and the conversation (chat) */
+.consent-inner {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  padding: 40px; overflow-y: auto;
+  transition: opacity 0.18s ease;
+}
+.consent-inner.chat { padding: 0; overflow: hidden; }
+
 .consent-min {
-  position: absolute; top: 20px; right: 20px;
+  position: absolute; top: 20px; right: 20px; z-index: 3;
   width: 30px; height: 30px; border-radius: 8px;
   border: none; background: transparent; color: var(--ink-soft);
   display: flex; align-items: center; justify-content: center; cursor: pointer;
@@ -487,11 +497,8 @@ button { font-family: inherit; }
 }
 .consent-close:hover { box-shadow: var(--shadow); }
 
-/* chat variant of the centered dialog: the conversation fills the panel
-   (no centered notice body). Padding 0 so header/composer span edge-to-edge. */
-.consent.chat { padding: 0; overflow: hidden; }
 
-.panel-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; flex: none; }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 22px 20px 14px; flex: none; }
 .panel-head .dot {
   width: 32px; height: 32px; flex: none;
   color: var(--accent);
@@ -674,3 +681,138 @@ button { font-family: inherit; }
 ::-webkit-scrollbar { width: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* =========================================================================
+   MARKETING ELEVATION LAYER  (landing/marketing surfaces only)
+   Adds depth, materiality, and motion to the flat marketing UI.
+   Deliberately scoped away from the AI-mode feature (.aimode / .consent /
+   .panel / conversation) and away from the global .btn so the consent
+   dialog's buttons stay exactly as-is.
+   ========================================================================= */
+
+:root {
+  --elev-1: 0 1px 2px rgba(20, 22, 29, 0.05), 0 6px 16px -8px rgba(20, 22, 29, 0.16);
+  --elev-2: 0 2px 6px rgba(20, 22, 29, 0.06), 0 22px 48px -18px rgba(20, 22, 29, 0.28);
+  --elev-accent: 0 10px 30px -12px rgba(88, 80, 236, 0.45);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+    --elev-2: 0 2px 8px rgba(0, 0, 0, 0.5), 0 26px 56px -18px rgba(0, 0, 0, 0.7);
+    --elev-accent: 0 12px 34px -12px rgba(139, 133, 255, 0.5);
+  }
+}
+:root[data-theme="dark"] {
+  --elev-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+  --elev-2: 0 2px 8px rgba(0, 0, 0, 0.5), 0 26px 56px -18px rgba(0, 0, 0, 0.7);
+  --elev-accent: 0 12px 34px -12px rgba(139, 133, 255, 0.5);
+}
+
+/* ambient, layered page background so the base stops reading as flat gray */
+body {
+  background:
+    radial-gradient(1100px 460px at 50% -6%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 62%),
+    radial-gradient(760px 520px at 100% -2%, color-mix(in srgb, var(--gold) 8%, transparent), transparent 58%),
+    var(--paper);
+  background-attachment: fixed;
+}
+
+/* sticky glass nav that floats over content */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--paper-raised) 80%, transparent);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  box-shadow: 0 1px 0 rgba(20, 22, 29, 0.04), 0 8px 24px -20px rgba(20, 22, 29, 0.5);
+}
+
+/* tactile marketing buttons (scoped; global .btn / consent buttons untouched) */
+.navcta .btn, .hero-actions .btn, .plan .btn {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease,
+    background 0.15s ease, border-color 0.15s ease;
+}
+.navcta .btn:hover, .hero-actions .btn:hover, .plan .btn:hover { transform: translateY(-2px); }
+.navcta .btn:active, .hero-actions .btn:active, .plan .btn:active { transform: translateY(0) scale(0.985); }
+.navcta .btn.primary, .hero-actions .btn.primary, .plan .btn.primary {
+  box-shadow: 0 2px 4px rgba(20, 22, 29, 0.10), 0 14px 30px -14px rgba(20, 22, 29, 0.55);
+}
+.navcta .btn.primary:hover, .hero-actions .btn.primary:hover, .plan .btn.primary:hover {
+  box-shadow: 0 4px 8px rgba(20, 22, 29, 0.12), 0 22px 44px -14px rgba(20, 22, 29, 0.6);
+}
+.navcta .btn:not(.primary):hover, .hero-actions .btn:not(.primary):hover, .plan .btn:not(.primary):hover {
+  background: var(--paper-raised); border-color: var(--line-strong); box-shadow: var(--elev-1);
+}
+
+/* hero visual: elevated object with an ambient glow + inner highlight */
+.hero-visual {
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(130% 120% at 28% 18%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+    linear-gradient(165deg, var(--paper-raised), var(--paper));
+  box-shadow: var(--elev-2), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+/* feature cards: real elevation, hover lift, a hairline accent that wakes on hover */
+.card {
+  position: relative; overflow: hidden;
+  box-shadow: var(--elev-1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%);
+  opacity: 0; transition: opacity 0.25s ease;
+}
+.card::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 40%, transparent));
+  transform: scaleX(0); transform-origin: left; transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.card:hover { transform: translateY(-4px); box-shadow: var(--elev-2); border-color: var(--line-strong); }
+.card:hover::before { opacity: 1; }
+.card:hover::after { transform: scaleX(1); }
+.card h4, .card p, .card .tag { position: relative; }
+
+/* pricing plans: elevation, hover lift, a genuinely featured featured-plan */
+.plan {
+  box-shadow: var(--elev-1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+.plan:hover { transform: translateY(-4px); box-shadow: var(--elev-2); }
+.plan.featured {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 80%, transparent), var(--paper-raised) 24%);
+  box-shadow: 0 0 0 1px var(--accent), var(--elev-2), var(--elev-accent);
+  transform: translateY(-6px);
+}
+.plan.featured:hover { transform: translateY(-10px); }
+.plan.featured .btn.primary { box-shadow: var(--elev-accent), 0 2px 4px rgba(20, 22, 29, 0.12); }
+
+/* CSS scroll-reveal: no JS, no deps. Degrades to static where unsupported or
+   when the user prefers reduced motion. Hover-able elements reveal with
+   opacity only, so their hover-lift transform is never fought by the animation. */
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .hero-copy > *, .hero-visual, .marquee h3, .finePrint > div, .step {
+      animation: mkt-reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 2% cover 22%;
+    }
+    .card, .plan {
+      animation: mkt-reveal-fade linear both;
+      animation-timeline: view();
+      animation-range: entry 2% cover 20%;
+    }
+  }
+}
+@keyframes mkt-reveal-up {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mkt-reveal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  .plan.featured, .plan.featured:hover { transform: none; } /* no scale/lift crowding on mobile */
+}

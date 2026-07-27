@@ -262,6 +262,7 @@ export default function AiModeInput() {
   const [wide, setWide] = useState(false);
   const [dragY, setDragY] = useState(0); // mobile drawer drag-to-close offset
   const dragStart = useRef<number | null>(null);
+  const [swapping, setSwapping] = useState(false); // crossfade consent <-> chat
 
   // prompts follow the page the persistent widget is currently on
   const pathname = usePathname();
@@ -346,12 +347,14 @@ export default function AiModeInput() {
   const closeOverlay = useCallback(() => {
     setView("closed");
     setMode("collapsed");
+    setSwapping(false);
   }, []);
 
   // minimize (dialog "−"): dismiss the overlay but leave the input expanded
   const minimizeOverlay = useCallback(() => {
     setView("closed");
     setMode("expanded");
+    setSwapping(false);
   }, []);
 
   // collapse the ai-mode input on click-outside (any state) and scroll (expanded only)
@@ -492,11 +495,17 @@ export default function AiModeInput() {
   };
 
   const accept = () => {
-    setConsented(true);
+    // crossfade the dialog from the legal wall to the conversation
+    setSwapping(true);
     const q = pending;
     setPending("");
-    setView("panel");
-    if (q) streamAnswer(q);
+    setTimeout(() => {
+      setConsented(true);
+      setView("panel");
+      if (q) streamAnswer(q);
+      // paint the new content at opacity 0, then fade it in
+      requestAnimationFrame(() => requestAnimationFrame(() => setSwapping(false)));
+    }, 190);
   };
 
   // ask from within the open chat panel (composer / empty-state chips)
@@ -667,6 +676,10 @@ export default function AiModeInput() {
             </svg>
           </button>
 
+          <div
+            className={"consent-inner" + (view === "panel" ? " chat" : "")}
+            style={{ opacity: swapping ? 0 : 1 }}
+          >
           {view === "consent" ? (
             <>
               <div className="consent-body">
@@ -773,6 +786,7 @@ export default function AiModeInput() {
               </div>
             </>
           )}
+          </div>
         </div>
         <button className="consent-close" aria-label="Close" onClick={closeOverlay}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
