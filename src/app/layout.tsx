@@ -3,7 +3,7 @@ import "./globals.css";
 import AiModeInput from "@/components/AiModeInput";
 
 export const metadata: Metadata = {
-  title: "Northline — Ask Nova",
+  title: "Northline - Ask Nova",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         {children}
-        {/* single persistent instance — survives page navigation so its
+        {/* single persistent instance - survives page navigation so its
             state (collapsed/expanded/active) blends across routes; prompts
             follow the current page via usePathname */}
         <AiModeInput />

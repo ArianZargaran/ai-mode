@@ -2,7 +2,9 @@
 
 import { useEffect, useRef } from "react";
 
-// Ambient canvas — soft flowing particle mesh (ported from the original app.js).
+// Ambient hero murmuration: dots stream along an italic "S" path with a soft
+// glow. Boxless (transparent canvas). Honors prefers-reduced-motion by drawing
+// a single static frame.
 export default function FlowCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -14,10 +16,11 @@ export default function FlowCanvas() {
 
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const N = 320;
     let w = 0;
     let h = 0;
     let particles: {
-      x: number; y: number; r: number; s: number; o: number; ph: number;
+      p: number; off: number; r: number; o: number; s: number; ph: number;
     }[] = [];
     let raf = 0;
 
@@ -27,6 +30,18 @@ export default function FlowCanvas() {
       const dark = explicit ? explicit === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
       return dark ? [139, 133, 255] : [88, 80, 236];
     }
+
+    // point on the italic S for a normalized position t in [0, 1]
+    function sPath(t: number): { x: number; y: number } {
+      const top = h * 0.1;
+      const bottom = h * 0.9;
+      const y = top + t * (bottom - top);
+      const amp = Math.min(w, h) * 0.34;
+      // one full sine over the height = an S; shear leans it forward (italic)
+      const x = w * 0.5 + amp * Math.sin(t * Math.PI * 2) + (0.5 - t) * w * 0.2;
+      return { x, y };
+    }
+
     function resize() {
       if (!canvas || !ctx) return;
       w = canvas.clientWidth;
@@ -37,32 +52,37 @@ export default function FlowCanvas() {
     }
     function init() {
       particles = [];
-      const n = 70;
-      for (let i = 0; i < n; i++) {
-        const t = i / n;
+      const band = Math.min(w, h) * 0.12;
+      for (let i = 0; i < N; i++) {
         particles.push({
-          x: w * 0.15 + t * w * 0.7 + (Math.random() - 0.5) * 30,
-          y: h * (0.25 + 0.5 * Math.sin(t * Math.PI)) + (Math.random() - 0.5) * 60,
-          r: 1 + Math.random() * 2.2,
-          s: 0.3 + Math.random() * 0.6,
-          o: 0.25 + Math.random() * 0.55,
+          p: i / N + Math.random() * 0.01,
+          off: (Math.random() + Math.random() - 1) * band, // center-biased scatter
+          r: 1.3 + Math.random() * 3.3,
+          o: 0.24 + Math.random() * 0.62,
+          s: 0.6 + Math.random() * 0.9,
           ph: Math.random() * Math.PI * 2,
         });
       }
     }
-    function draw(t: number) {
+    function draw(time: number) {
       if (!ctx) return;
       ctx.clearRect(0, 0, w, h);
       const c = themeAccent();
       const gold: [number, number, number] = [221, 154, 52];
-      particles.forEach((p, i) => {
-        const yy = p.y + Math.sin(t * 0.0006 * p.s + p.ph) * 14;
+      ctx.shadowBlur = 13;
+      particles.forEach((pt, i) => {
+        const t = reduced ? pt.p : (pt.p + time * 0.000035 * pt.s) % 1;
+        const base = sPath(t);
+        const x = base.x + pt.off + (reduced ? 0 : Math.sin(time * 0.0007 * pt.s + pt.ph) * 10);
+        const y = base.y + (reduced ? 0 : Math.cos(time * 0.0006 + pt.ph) * 6);
         const mix = i % 5 === 0 ? gold : c;
         ctx.beginPath();
-        ctx.fillStyle = `rgba(${mix[0]},${mix[1]},${mix[2]},${p.o})`;
-        ctx.arc(p.x, yy, p.r, 0, Math.PI * 2);
+        ctx.shadowColor = `rgba(${mix[0]},${mix[1]},${mix[2]},0.5)`;
+        ctx.fillStyle = `rgba(${mix[0]},${mix[1]},${mix[2]},${pt.o})`;
+        ctx.arc(x, y, pt.r, 0, Math.PI * 2);
         ctx.fill();
       });
+      ctx.shadowBlur = 0;
       if (!reduced) raf = requestAnimationFrame(draw);
     }
     function onResize() {

@@ -257,6 +257,12 @@ export default function AiModeInput() {
   const [consented, setConsented] = useState(false);
   const [pending, setPending] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
+  // always-fresh mirror of `messages` — streamAnswer's closure only refreshes
+  // on length changes, so it reads history through this ref instead
+  const messagesRef = useRef<Msg[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [wide, setWide] = useState(false);
@@ -267,6 +273,12 @@ export default function AiModeInput() {
   // prompts follow the page the persistent widget is currently on
   const pathname = usePathname();
   const prompts = PROMPTS_BY_ROUTE[pathname] ?? DEFAULT_PROMPTS;
+  // fresh mirror for streamAnswer (its closure refreshes only on message-count
+  // changes, so a route change between questions would otherwise go stale)
+  const pathnameRef = useRef(pathname);
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const aiInputRef = useRef<HTMLTextAreaElement>(null);
@@ -389,6 +401,15 @@ export default function AiModeInput() {
   const streamAnswer = useCallback(
     async (question: string) => {
       setBusy(true);
+      // snapshot prior completed turns BEFORE appending the new question, so
+      // the server sees exactly the preceding conversation (no dup of the
+      // current question, no empty placeholder)
+      const history = messagesRef.current
+        .filter((m) => m.role === "user" || (m.done && !m.error && m.text))
+        .map((m) => ({
+          role: m.role === "user" ? ("user" as const) : ("assistant" as const),
+          content: m.text,
+        }));
       const aiIndex = messages.length + 1;
       setMessages((prev) => [
         ...prev,
@@ -409,7 +430,7 @@ export default function AiModeInput() {
         const res = await fetch("/api/ask", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ message: question }),
+          body: JSON.stringify({ message: question, history, page: pathnameRef.current }),
         });
         if (!res.ok || !res.body) throw new Error("Request failed (" + res.status + ")");
 
@@ -705,7 +726,6 @@ export default function AiModeInput() {
           ) : (
             <>
               <div className="panel-head">
-                <span className="dot">{SPARK_ACCENT}</span>
                 <div className="who">
                   Ask Nova<small>Northline&apos;s AI assistant</small>
                 </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import NavBar from "@/components/NavBar";
 
-export const metadata: Metadata = { title: "Pricing — Northline" };
+export const metadata: Metadata = { title: "Pricing - Northline" };
 
 const CHECK = (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
@@ -75,7 +75,7 @@ export default function PricingPage() {
         </div>
         <div>
           <strong>Nonprofit &amp; education</strong>
-          30% off Business is available through sales — not self-serve.
+          30% off Business is available through sales - not self-serve.
         </div>
         <div>
           <strong>No setup fee</strong>
