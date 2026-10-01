@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "eval": "node --env-file=.env.local --import tsx evals/ask-nova/run-eval.mjs --flow evals/ask-nova"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
@@ -21,7 +22,10 @@
     "@types/pg": "^8.20.3",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "typescript": "^5.7.2"
+    "anthropic-latest": "npm:@anthropic-ai/sdk@^0.131.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2",
+    "zod": "^4.6.5"
   },
   "engines": {
     "node": ">=18.17"

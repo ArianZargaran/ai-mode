@@ -1,0 +1,7 @@
+Yes — EU data residency is supported, though it's tied to plan level.
+
+- **EU residency**: Enterprise workspaces can request a dedicated data residency region (US, EU, or APAC) at no extra cost [1].
+- **Data boundary**: all ticket data used by Nova stays within your workspace's boundary and isn't used to train shared models across customers [1].
+- **Plan requirement**: this residency option is specifically available on Enterprise — check [Pricing plans](https://northline.com/pricing) to confirm tier details.
+
+For more on how data is handled overall, see https://northline.com/integrations or reach out to sales for EU-specific setup confirmation.

@@ -19,6 +19,11 @@ const REWRITE_MODEL = process.env.REWRITE_MODEL || "claude-haiku-4-5-20251001";
 const VOYAGE_MODEL = process.env.VOYAGE_MODEL || "voyage-3-lite";
 const VOYAGE_RERANK_MODEL = process.env.VOYAGE_RERANK_MODEL || "rerank-2-lite";
 
+// Eval-only trace: when set, the final `meta` event also carries the route taken,
+// the retrieved passages, and the model/usage/stop_reason of each model call, so
+// evals/ask-nova can grade and cost every case. Off in production; the UI ignores it.
+const EVAL_TRACE = process.env.RAG_EVAL_TRACE === "1";
+
 const MAX_HISTORY = 8; // turns of context passed to generation & rewriting
 const MAX_MSG_CHARS = 2000;
 
@@ -56,12 +61,14 @@ function sanitizeHistory(raw: unknown): HistoryMsg[] {
 // Follow-up questions ("what about the cheaper one?") retrieve badly as-is.
 // With history present, a small fast model rewrites the question into a
 // standalone search query; on any failure the raw question is used.
+type Condensed = { query: string; model?: string; usage?: Anthropic.Usage };
+
 async function condenseQuery(
   anthropic: Anthropic,
   history: HistoryMsg[],
   question: string
-): Promise<string> {
-  if (history.length === 0) return question;
+): Promise<Condensed> {
+  if (history.length === 0) return { query: question };
   try {
     const transcript = history
       .map((m) => `${m.role === "user" ? "User" : "Nova"}: ${m.content}`)
@@ -80,10 +87,10 @@ async function condenseQuery(
       .map((b) => b.text)
       .join(" ")
       .trim();
-    return text || question;
+    return { query: text || question, model: res.model, usage: res.usage };
   } catch (err) {
     console.error("[rag] query rewrite failed, using raw question:", err);
-    return question;
+    return { query: question };
   }
 }
 
@@ -123,14 +130,16 @@ export async function POST(req: Request): Promise<Response> {
 
   // steer responses (pricing) show the contact-sales card and no CTA;
   // regular canned summaries show the CTA and no fallback card
-  const cannedMeta = (s: PageSummary) => ({
+  type Route = "pricing_steer" | "summary";
+  const cannedMeta = (s: PageSummary, route: Route, extra: Record<string, unknown> = {}) => ({
     sources: s.sources ?? [{ title: s.title, url: s.url, score: 1 }],
     confident: true,
     cta: !s.steer,
     fallback: !!s.steer,
+    ...(EVAL_TRACE ? { eval: { route, ...extra } } : {}),
   });
 
-  const cannedResponse = (s: PageSummary) => {
+  const cannedResponse = (s: PageSummary, route: Route) => {
     const canned = new ReadableStream<Uint8Array>({
       async start(controller) {
         const send = (event: string, data: unknown) => {
@@ -141,7 +150,7 @@ export async function POST(req: Request): Promise<Response> {
           send("delta", { text: block });
           await new Promise((r) => setTimeout(r, 60));
         }
-        send("meta", cannedMeta(s));
+        send("meta", cannedMeta(s, route));
         controller.close();
       },
     });
@@ -157,7 +166,7 @@ export async function POST(req: Request): Promise<Response> {
   // Pricing is never answered by the model — no numbers, no plan advice, no
   // discounts. Anything pricing-shaped hands off to sales/support verbatim.
   if (isPricingIntent(message)) {
-    return cannedResponse(PRICING_STEER);
+    return cannedResponse(PRICING_STEER, "pricing_steer");
   }
 
   // "Summarize this page" (fixed prompt or free-form ask) short-circuits the
@@ -167,7 +176,7 @@ export async function POST(req: Request): Promise<Response> {
   // the /pricing entry is itself a steer to sales.
   const summary = isSummaryIntent(message) ? PAGE_SUMMARIES[page] ?? NOT_FOUND_SUMMARY : undefined;
   if (summary) {
-    return cannedResponse(summary);
+    return cannedResponse(summary, "summary");
   }
 
   const stream = new ReadableStream<Uint8Array>({
@@ -177,7 +186,9 @@ export async function POST(req: Request): Promise<Response> {
       };
 
       try {
-        const query = await condenseQuery(anthropic, history, message);
+        const condensed = await condenseQuery(anthropic, history, message);
+        const query = condensed.query;
+        const rewrite = condensed.model ? { model: condensed.model, usage: condensed.usage } : null;
 
         // second pricing gate: a follow-up like "and how much is that?" only
         // reveals its pricing nature after the history-aware rewrite
@@ -186,7 +197,7 @@ export async function POST(req: Request): Promise<Response> {
             send("delta", { text: block });
             await new Promise((r) => setTimeout(r, 60));
           }
-          send("meta", cannedMeta(PRICING_STEER));
+          send("meta", cannedMeta(PRICING_STEER, "pricing_steer", { gate: "rewrite", query, rewrite }));
           return;
         }
 
@@ -205,13 +216,27 @@ export async function POST(req: Request): Promise<Response> {
 
         modelStream.on("text", (delta) => send("delta", { text: delta }));
 
-        await modelStream.finalMessage();
+        const final = await modelStream.finalMessage();
 
         send("meta", {
           sources,
           confident,
           cta: confident,
           fallback: !confident,
+          ...(EVAL_TRACE
+            ? {
+                eval: {
+                  route: "rag",
+                  query,
+                  rewrite,
+                  system: SYSTEM_PROMPT,
+                  context: chunks.map((c) => ({ docId: c.docId, heading: c.heading, score: c.score, text: c.text })),
+                  model: final.model,
+                  usage: final.usage,
+                  stop_reason: final.stop_reason,
+                },
+              }
+            : {}),
         });
       } catch (err) {
         console.error("Request failed:", err);

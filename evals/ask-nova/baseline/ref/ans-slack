@@ -1,0 +1,9 @@
+Yes, Slack is a supported channel for filing tickets.
+
+- **Slash command** — requesters use `/northline` to file a ticket directly from Slack without leaving the app [1].
+- **Inline replies** — agents can respond to the ticket right inside the Slack thread, and the conversation syncs back to the ticket automatically [1].
+- **Unified queue** — Slack tickets land in the same triage queue as email and web form requests, keeping full channel context [1].
+
+For setup details, see [Pricing plans](https://northline.com/pricing) or check integration docs.
+
+https://northline.com/integrations

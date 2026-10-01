@@ -1,0 +1,7 @@
+No — your workspace's ticket data is kept separate and isolated.
+
+- **Data boundary**: Ticket data used by Nova stays within your workspace's data boundary and is not used to train models shared across other Northline customers [1].
+- **Session scope**: Draft replies and routing suggestions are generated per-request and aren't persisted by Nova beyond the session needed to serve the response [1].
+- **Residency option**: Enterprise workspaces can request a dedicated data residency region (US, EU, or APAC) at no extra cost [1].
+
+For more detail, see [Security practices](https://northline.com/security) — also check https://northline.com/integrations for related setup info.

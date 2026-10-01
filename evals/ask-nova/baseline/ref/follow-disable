@@ -1,0 +1,6 @@
+Yes, admins have full control to disable Nova workspace-wide.
+
+- **Disable toggle**: Admins can turn off Nova entirely at the workspace level via Settings → AI [1].
+- **No impact on core features**: Turning off Nova doesn't affect any non-AI functionality [1].
+
+For more on how Nova handles data when enabled, see [Security details](https://northline.com/security) or check https://northline.com/product/ai for setup info.

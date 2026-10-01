@@ -1,0 +1,9 @@
+Nova's anomaly alerts flag tickets at SLA risk before they breach, rather than relying on a simple countdown timer.
+
+- **Detection basis** — uses queue velocity and historical resolution time to predict risk, not a fixed timer [1][2].
+- **Learning source** — runs on your workspace's own ticket history rather than a generic model, so predictions reflect how your team actually works [2].
+- **Availability** — Nova (including anomaly alerts) ships on the Business and Enterprise plans, and activates automatically once a workspace has 30 days of ticket history; before that it runs in a cold-start mode using category defaults [1].
+
+Check [Pricing plans](https://northline.com/pricing) for plan details, and see more on the AI product page.
+
+https://northline.com/product/ai

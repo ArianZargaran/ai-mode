@@ -1,0 +1,9 @@
+Here's what Northline's webhooks support for outbound notifications:
+
+- **Ticket created** — fires when a new ticket enters the queue [1].
+- **Status changed** — fires when a ticket's status is updated [1].
+- **SLA breached** — fires when a ticket crosses its SLA threshold [1].
+
+Webhooks are available on Business and Enterprise alongside the full REST API [1]; see [Pricing plans](https://northline.com/pricing) for plan details.
+
+https://northline.com/integrations
