@@ -1,0 +1,7 @@
+Short answer: no, Nova doesn't retain the drafts—they're generated fresh each time.
+
+- **Persistence**: Draft replies are generated per-request and not persisted by Nova beyond the session needed to serve the response [3].
+- **Data boundary**: The ticket data used stays within your workspace and isn't used to train shared models across other customers [4].
+- **Context sources**: Drafts pull from linked tickets, past resolutions, and the requester's history so agents start from a real draft instead of a blank box [1].
+
+For more on how this is secured, see [Security overview](https://northline.com/security) or check https://northline.com/integrations for related setup details.

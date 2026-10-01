@@ -1,0 +1,10 @@
+This page covers Northline's platform architecture.
+
+- **One graph** — requests, rules, and approvals live on a single graph, so routing, SLAs, and reporting read one source of truth.
+- **Nova-powered routing** — learns from past assignments and team load; typical teams halve unassigned-ticket time in the first month.
+- **SLA engine** — predicts breaches from queue velocity and history, not just fixed timers.
+- **Admin & security** — SOC 2 Type II, SSO/SCIM and audit log on Enterprise, region-pinned data residency.
+
+Full details in the [platform documentation](https://northline.com/product/platform).
+
+https://northline.com/trust/ai-data

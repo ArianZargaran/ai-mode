@@ -1,0 +1,7 @@
+Turning off Nova is a simple admin-level toggle.
+
+- **Location**: go to Settings → AI in your workspace admin panel [1].
+- **Scope**: disabling Nova only turns off the AI layer — all non-AI ticketing functionality keeps working normally [1].
+- **Who can do it**: this is a workspace-level setting, so it requires admin access.
+
+For more on how Nova handles data before you decide, see [Security details](https://northline.com/security) or check https://northline.com/integrations for related setup info.

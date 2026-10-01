@@ -1,0 +1,7 @@
+I don't have information confirming HIPAA compliance in the provided context — I can't guess on this.
+
+- **What is documented:** Northline holds **SOC 2 Type II** certification (renewed annually) and completes an annual third-party **penetration test**, with summaries available under NDA [1][2].
+- **Data residency:** Enterprise workspaces can request a dedicated region (US, EU, or APAC) at no extra cost [1].
+- **Access controls:** SSO/SAML, SCIM provisioning, and full audit logs ship with Enterprise workspaces [2].
+
+For a definitive answer on HIPAA compliance (or a BAA), please reach out to sales directly — check [Security details](https://northline.com/security) or https://northline.com/integrations for more, and see [Pricing plans](https://northline.com/pricing) for Enterprise options.

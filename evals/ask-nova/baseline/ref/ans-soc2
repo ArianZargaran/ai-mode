@@ -1,0 +1,9 @@
+Yes — Northline is SOC 2 certified.
+
+- **Certification**: SOC 2 Type II, renewed annually [1].
+- **Pen testing**: A third-party penetration test is completed each year, with a summary available to customers under NDA [2].
+- **Related safeguards**: Enterprise workspaces also get SSO/SAML, SCIM provisioning, and a full audit log of login/export/admin actions [1].
+
+For more detail, see [Security overview](https://northline.com/security) — compliance docs and NDA requests can be arranged through that page.
+
+https://northline.com/integrations

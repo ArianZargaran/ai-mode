@@ -1,0 +1,7 @@
+**No native Teams integration** — Northline does not currently offer one [1].
+
+- **Roadmap status**: it's on the public roadmap but not scheduled for release [1].
+- **Workaround**: route Teams requests through the embeddable web form or a shared email alias, both of which feed into the unified queue [1].
+- **Supported channels today**: Email, web forms, Slack (via `/northline`), and a full REST API/webhooks on Business and Enterprise plans [1].
+
+For current integration details, see https://northline.com/integrations or check [Pricing plans](https://northline.com/pricing) for which tiers include API access.

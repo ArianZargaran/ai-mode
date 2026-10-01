@@ -1,0 +1,7 @@
+Nova begins learning as soon as ticket data starts accumulating, but full personalization takes a bit of history.
+
+- **Activation threshold**: Nova activates automatically once a workspace has 30 days of ticket history to learn from [1].
+- **Before that**: during the first 30 days, it runs in a cold-start mode using category defaults rather than your team's specific patterns [1].
+- **Plan requirement**: Nova is only available on the Business and Enterprise plans, with no separate setup needed once eligible [1].
+
+See [Pricing plans](https://northline.com/pricing) for plan details, and check https://northline.com/integrations for setup info.

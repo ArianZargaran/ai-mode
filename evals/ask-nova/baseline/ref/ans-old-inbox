@@ -1,0 +1,8 @@
+On go-live, the old system stays accessible but stops accepting new work.
+
+- **Read-only mode**: the old inbox or tracker is switched to read-only so no new requests can come in through it [1].
+- **Full cutover**: all new requests flow through Northline exclusively from that point on [1].
+- **Timing**: this happens on Day 5 of the standard rollout, after channels are connected and the team is invited [1].
+
+For a full walkthrough of the rollout steps, see [Onboarding guide](https://northline.com/onboarding).
+https://northline.com/integrations

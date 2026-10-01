@@ -1,0 +1,10 @@
+Requests can flow in through several channels, with most connected during the first week of onboarding.
+
+- **Email** — a dedicated inbox per queue; connected on **Day 1** of onboarding as the primary channel [1][2].
+- **Web forms** — embeddable, no-code request forms with custom fields; added on **Day 4** along with Slack [1][2].
+- **Slack** — `/northline` command lets requesters file tickets without leaving Slack; also connected on **Day 4** [1][2].
+- **API** — full REST API (Business/Enterprise) plus webhooks for programmatic ticket creation and events; not tied to a specific onboarding day, set up as needed [1].
+
+By **Day 5**, all connected channels go live and the old inbox/tracker is switched to read-only [2]. For more detail, see [Pricing plans](https://northline.com/pricing) or check integration specifics at:
+
+https://northline.com/integrations

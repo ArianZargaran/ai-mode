@@ -1,0 +1,8 @@
+Nova's smart routing automatically assigns incoming tickets to the right queue based on your team's own history.
+
+- **How it learns** — uses past assignments and current team load, not a generic model, to decide where tickets should go [1].
+- **Impact** — teams typically see unassigned-ticket time drop by half in the first month [1].
+- **Availability** — ships as part of Nova on the Business and Enterprise plans, and activates automatically once a workspace has 30 days of ticket history (cold-start mode with category defaults until then) [2].
+
+See [Pricing plans](https://northline.com/pricing) for plan details, or check integration options at:
+https://northline.com/integrations

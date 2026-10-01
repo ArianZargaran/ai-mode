@@ -1,0 +1,8 @@
+Actually, that's not accurate based on current documentation.
+
+- **Native Teams integration** — does not exist yet; it's listed on the public roadmap but has no scheduled release date [1].
+- **Current workaround** — Teams requests are routed through the embeddable web form or a shared email alias into the unified queue [1].
+- **Supported channels today** — Email, web forms, Slack (via `/northline` command), and the REST API/webhooks on Business and Enterprise [1].
+
+You may want to loop in sales to get the latest roadmap timing — see [Pricing plans](https://northline.com/pricing) for plan details, and check current integrations here:
+https://northline.com/integrations

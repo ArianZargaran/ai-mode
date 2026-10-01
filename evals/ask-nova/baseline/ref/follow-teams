@@ -1,0 +1,7 @@
+No native Microsoft Teams integration exists yet — it's on the roadmap but unscheduled.
+
+- **Workaround** — route Teams requests through the web form or a shared email alias instead [1].
+- **Roadmap status** — listed publicly, but no committed timeline [1].
+
+See current connections at [Integrations](https://northline.com/integrations) or check for updates at
+https://northline.com/integrations

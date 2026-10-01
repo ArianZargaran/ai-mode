@@ -1,0 +1,8 @@
+Yes — spreadsheet imports are supported as part of standard onboarding.
+
+- **CSV import**: open tickets can be imported from a spreadsheet using a provided CSV template, or via a built-in migration connector from a prior tool [1].
+- **Timing**: this typically happens on Day 2 of a 5-day rollout, right after initial workspace setup [1].
+- **Follow-up**: Northline can suggest routing rules based on the categories from your imported tickets on Day 3 [1].
+- **Support**: a free onboarding specialist (Business/Enterprise, first 30 days) or guided setup docs (Team plan) are available to help with the import [1].
+
+For plan-specific onboarding support details, check [Pricing plans](https://northline.com/pricing), and see https://northline.com/integrations for connector options.
