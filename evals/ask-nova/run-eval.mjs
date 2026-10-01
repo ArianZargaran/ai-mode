@@ -66,8 +66,9 @@ async function readSse(res) {
   const raw = await res.text();
   const events = raw.split('\n\n').filter(Boolean).map(block => {
     const ev = /^event: (.+)$/m.exec(block)?.[1];
-    const data = /^data: (.+)$/m.exec(block)?.[1];
-    return { ev, data: data ? JSON.parse(data) : null };
+    // SSE allows an event's payload to span several data: lines, joined by \n
+    const lines = [...block.matchAll(/^data: ?(.*)$/gm)].map(m => m[1]);
+    return { ev, data: lines.length ? JSON.parse(lines.join('\n')) : null };
   });
   return {
     text: events.filter(e => e.ev === 'delta').map(e => e.data.text).join(''),
